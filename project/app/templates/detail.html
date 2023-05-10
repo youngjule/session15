@@ -1,0 +1,114 @@
+{% extends 'base.html' %} {% block content %}
+<div>
+  <div>
+    <div class="post_title">{{ post.title }}</div>
+    <div class="post_content">{{ post.content }}</div>
+  </div>
+  <a href="{% url 'home' %}">홈으로</a>
+
+  {% if user.is_authenticated and post.author.pk == user.pk %}
+  <a href="{% url 'edit' post.pk %}">수정하기</a>
+  <a href="{% url 'delete' post.pk %}">삭제하기</a>
+    {% if post.likes.count == 1 %}
+    <span class="like-count like-active">좋아요 {{post.likes.count}}개</span>
+    {% else %}
+    <span class="like-count like-none">좋아요 {{post.likes.count}}개</span>
+    {% endif %}
+  {% endif %}
+  <div class="comment-box">
+  {% for comment in post.comments.all %}
+    <div id="{{comment.pk}}-box">
+      <li>{{ comment.content }}</li>
+      {% if user.is_authenticated and comment.author.pk == user.pk %}
+      <a id={{comment.pk}} class="comment-delete">댓글삭제</a>
+      {% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  {% if user.is_authenticated %}
+  <input class="comment-input" type="text" placeholder="댓글을 입력하세요">
+  <button class="comment-btn">댓글 쓰기</button>
+  <button class="like-button">좋아요</button>
+  {% endif %}
+</div>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+  const likeButton = document.querySelector('.like-button');
+  const likeCount = document.querySelector('.like-count');
+  const handleLike = async () => {
+    try {
+      const res = await axios.post('/like', {post_pk: "{{post.pk}}"})
+      likeCount.innerHTML = "좋아요 " + res.data.like_count + "개"
+      if ('like-active' == likeCount.classList[1]) {
+        likeCount.classList.replace('like-active', 'like-none')
+        likeCount.style.color = 'black'
+      }
+      else {
+        likeCount.classList.replace('like-none', 'like-active')
+        likeCount.style.color = 'red'
+      }
+    }
+    catch (e) {
+      console.error(e)
+    }
+  };
+
+  const commentBtn = document.querySelector('.comment-btn');
+  const commentInput = document.querySelector('.comment-input');
+  const commentBox = document.querySelector('.comment-box');
+  
+  const handleComment = async () => {
+    try {
+      const res = await axios.post('/create_comment', {post_pk: "{{post.pk}}", content: commentInput.value})
+      const {content, post_pk, comment_pk} = res.data
+
+      const div = document.createElement('div')
+      div.id = comment_pk + '-box'
+
+      const li = document.createElement('li')
+      li.innerHTML = content
+      div.appendChild(li)
+      
+      const a = document.createElement('a')
+      a.innerHTML = "댓글삭제"
+      a.id = comment_pk
+      a.classList.add('comment-delete')
+      a.addEventListener('click', handleCommentDel)
+      div.appendChild(a)
+
+      commentBox.appendChild(div)
+
+      commentInput.value = ''
+    }
+    catch (e) {
+      console.error(e);
+    }
+  }
+  const handleCommentDel = async (e) => {
+    const id = e.target.id
+    try {
+      const res = await axios.post('/delete_comment/' + "{{post.pk}}/" + `${id}`)
+
+      console.log(res)
+      const {comment_pk} = res.data
+
+      const commentBoxDeleted = e.target.parentNode
+      commentBoxDeleted.remove()
+    }
+    catch(err){
+      console.error(err);
+    }
+  }
+
+  const commentDelete = document.querySelectorAll('.comment-delete')
+  for (let i = 0; i < commentDelete.length; i++) {
+    const a = commentDelete[i];
+    a.addEventListener('click', handleCommentDel)
+  }
+
+  likeButton.addEventListener('click', handleLike);
+  commentBtn.addEventListener('click', handleComment);
+
+</script>
+
+{% endblock content %}
